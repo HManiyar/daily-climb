@@ -18,9 +18,10 @@ Stories containing negative words (layoffs, lawsuits, outages…) are filtered o
 Open `app.js` and edit `CONFIG` at the top: your name, the tech tags you want, interview search phrases, startup searches and RSS feeds. Tips and the playbook are plain arrays you can rewrite.
 
 ## Host on GitHub Pages
-1. Create a new public repo, e.g. `daily-climb`.
-2. Upload `index.html`, `style.css`, `app.js` (and this README).
-3. Repo **Settings → Pages → Source: Deploy from a branch → `main` / root → Save**.
-4. In a minute your paper is live at `https://<your-username>.github.io/daily-climb/`.
+This repo ships a workflow (`.github/workflows/pages.yml`) that publishes the site on every push to `main`.
+
+1. Repo **Settings → Pages → Build and deployment → Source: GitHub Actions** (one-time).
+2. Push to `main` (or run the workflow from the **Actions** tab).
+3. Your paper is live at `https://hmaniyar.github.io/daily-climb/`.
 
 Tip: add it to your phone's home screen from the browser menu so it opens like an app every morning.
