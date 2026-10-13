@@ -8,32 +8,64 @@ const CONFIG = {
   readerName: "", // e.g. "Rahul" → shows "for Rahul"
   // DEV Community tags for the "Learn" section (first one is default)
   learnTags: ["webdev", "javascript", "python", "ai", "systemdesign", "devops", "react"],
-  // Hacker News searches for interview experiences / switching stories
-  interviewQueries: [
-    "interview experience", "got an offer", "how I got hired",
-    "landed a job at", "FAANG interview", "system design interview"
+  // Region for Google News searches (en-IN = India; use en-US / US / US:en for the US)
+  newsRegion: { hl: "en-IN", gl: "IN", ceid: "IN:en" },
+  // Interview Stories: how people got into the world's best companies.
+  // Only stories that name one of TOP_COMPANIES (below) are kept.
+  interviewNewsQueries: [
+    '"cracked" OR "landed" OR "bagged" job Google OR Microsoft OR Amazon OR Meta OR Apple engineer',
+    '"how I got" OR "my journey" OR "interview experience" Google OR Microsoft OR Amazon OR Nvidia OR OpenAI OR Netflix'
   ],
-  // DEV tags with career / interview stories
-  interviewTags: ["career", "interview", "motivation"],
+  interviewQueries: [ // Hacker News
+    "Google interview experience", "how I got into Google", "joined Microsoft",
+    "Amazon offer", "Meta interview", "FAANG offer", "Big Tech job journey"
+  ],
+  interviewMediumTags: ["faang", "google-interview", "interview-experience"],
+  interviewTags: ["faang", "interview", "career"], // DEV
   // Startup searches
   startupQueries: ["Show HN", "launch", "raised seed", "bootstrapped", "indie hacker"],
-  // Positive-news RSS feeds (fetched through rss2json, free tier)
-  goodNewsFeeds: [
-    "https://www.positive.news/feed/",
-    "https://www.goodnewsnetwork.org/feed/"
+  // Good News: the positive side of the IT industry (Google News searches, last 7 days)
+  techNewsQueries: [
+    'tech OR IT companies hiring OR "hiring spree" OR "new jobs" software engineers',
+    'tech company expands OR "new campus" OR "new office" OR "invests" India OR global',
+    'AI OR semiconductor OR software breakthrough OR "record growth" OR "record revenue"'
   ],
+  // Hacker News searches for upbeat industry news
+  techNewsHN: ["hiring", "record revenue", "open sources", "breakthrough"],
   cacheMinutes: 60,
   daysBack: 10
 };
 
-/* Words that make a story "not positive" — those stories are hidden */
+/* Words that make a story "not positive" — those stories are hidden.
+   Each entry matches at the start of a word ("layoff" also hides "layoffs"). */
 const NEGATIVE = [
-  "layoff", "laid off", "fired", "death", "died", "dies", "killed", "lawsuit", "sued",
-  "scam", "fraud", "hack", "breach", "crash", "collapse", "shutdown", "shuts down",
-  "bankrupt", "toxic", "burnout", "rejected", "war", "attack", "arrest", "fail", "hate", "worst",
-  "depress", "outage", "recession", "doomed", "rant"
+  "layoff", "lay off", "laid off", "fired", "firing", "job cut", "job loss", "cuts\\b", "cutting jobs",
+  "slash", "downsiz", "hiring freeze", "freeze", "restructur", "retrench", "pink slip", "let go",
+  "death", "died", "dies\\b", "killed", "lawsuit", "sued\\b", "scam", "fraud", "hacked", "hackers?\\b",
+  "breach", "crash", "collapse", "shutdown", "shuts down", "bankrupt", "toxic", "burnout", "rejected",
+  "wars?\\b", "attack", "arrest", "fail", "hate\\b", "worst", "depress", "outage", "recession",
+  "slowdown", "downturn", "decline", "plunge", "slump", "tumble", "doomed", "rant\\b", "fear",
+  "threat", "warn", "crisis", "bubble", "struggl", "replace", "job-killing", "jobless", "unemploy"
 ];
-const isPositive = (t = "") => !NEGATIVE.some(w => t.toLowerCase().includes(w));
+const NEGATIVE_RE = new RegExp("\\b(" + NEGATIVE.join("|") + ")", "i");
+const isPositive = (t = "") => !NEGATIVE_RE.test(t);
+
+/* Good News must also sound upbeat */
+const UPBEAT_RE = /\b(hir(e|es|ed|ing)|jobs?\b|expan|opens?\b|launch|record|grow|growth|invest|breakthrough|boost|surge|rise|rising|wins?\b|award|campus|salary hike|bonus|demand|open[- ]sourc|milestone|new office|partners?hip)/i;
+
+/* Interview Stories must name one of these companies… */
+const TOP_COMPANIES = [
+  "Google", "Alphabet", "DeepMind", "Microsoft", "Amazon", "AWS", "Meta", "Facebook", "Apple",
+  "Netflix", "Nvidia", "OpenAI", "Anthropic", "Tesla", "Stripe", "Adobe", "Salesforce", "Uber",
+  "Airbnb", "LinkedIn", "Atlassian", "Goldman Sachs", "Databricks", "Intuit", "FAANG", "MAANG", "Big Tech"
+];
+const COMPANY_RE = new RegExp("\\b(" + TOP_COMPANIES.join("|") + ")\\b", "i");
+/* …and read like a "how I got in" story */
+const STORY_RE = /\b(got|get|getting|land(ed|ing)?|crack(ed|ing)?|bag(s|ged)?|join(ed|ing)?|offers?|hired|selected|interview|journey|how i|made it|my path|road to|internship|intern\b|package|placed|preparation|prepared)/i;
+const companyOf = t => {
+  const m = t.match(COMPANY_RE);
+  return m ? TOP_COMPANIES.find(c => c.toLowerCase() === m[1].toLowerCase()) : "";
+};
 
 const TIPS = [
   "Solve one DSA problem before breakfast. Consistency beats intensity.",
@@ -124,8 +156,8 @@ const dedupe = arr => {
 /* ---------- sources ---------- */
 
 // Hacker News via Algolia (free, no key)
-async function hn(query, minPoints = 5) {
-  const since = Math.floor(Date.now() / 1000) - CONFIG.daysBack * 86400;
+async function hn(query, minPoints = 5, days = CONFIG.daysBack) {
+  const since = Math.floor(Date.now() / 1000) - days * 86400;
   const url = `https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(query)}&tags=story&numericFilters=created_at_i>${since},points>${minPoints}&hitsPerPage=10`;
   const d = await cachedFetch(url);
   return d.hits.map(h => ({
@@ -176,9 +208,34 @@ async function rss(feed) {
     desc: stripHtml(i.description),
     image: i.thumbnail || i.enclosure?.link,
     date: i.pubDate?.replace(" ", "T") + "Z",
-    source: d.feed?.title
+    source: d.feed?.title,
+    author: i.author
   }));
 }
+
+// Google News search as RSS (fetched through rss2json)
+async function gnews(query, days) {
+  const { hl, gl, ceid } = CONFIG.newsRegion;
+  const feed = `https://news.google.com/rss/search?q=${encodeURIComponent(`${query} when:${days}d`)}&hl=${hl}&gl=${gl}&ceid=${ceid}`;
+  return (await rss(feed)).map(i => {
+    // Titles look like "Headline - Publisher"
+    const cut = i.title.lastIndexOf(" - ");
+    return { ...i, title: cut > 0 ? i.title.slice(0, cut) : i.title, source: cut > 0 ? i.title.slice(cut + 3) : "Google News", desc: "" };
+  });
+}
+
+// Medium tag feed (fetched through rss2json)
+async function medium(tag) {
+  return (await rss(`https://medium.com/feed/tag/${tag}`)).map(i => ({ ...i, source: `Medium · ${i.author || ""}`.replace(/ · $/, "") }));
+}
+
+// Take items from each source in turn so no single source dominates
+const interleave = lists => {
+  const out = [];
+  for (let i = 0; lists.some(l => i < l.length); i++) lists.forEach(l => { if (i < l.length) out.push(l[i]); });
+  return out;
+};
+const settled = async jobs => (await Promise.allSettled(jobs)).map(r => r.status === "fulfilled" ? r.value : []);
 
 /* ---------- sections ---------- */
 
@@ -213,13 +270,17 @@ async function loadRepos() {
 async function loadInterviews() {
   const grid = $("interviewGrid");
   skeletons(grid);
-  const jobs = [
-    ...CONFIG.interviewQueries.map(q => hn(q, 3)),
-    ...CONFIG.interviewTags.map(t => dev(t, 6))
-  ];
-  const results = (await Promise.allSettled(jobs)).flatMap(r => r.status === "fulfilled" ? r.value : []);
-  const items = dedupe(results.filter(i => isPositive(i.title))).sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 12);
-  renderCards(grid, items);
+  const lists = await settled([
+    ...CONFIG.interviewNewsQueries.map(q => gnews(q, 30)),
+    ...CONFIG.interviewMediumTags.map(medium),
+    ...CONFIG.interviewQueries.map(q => hn(q, 3, 90)),
+    ...CONFIG.interviewTags.map(t => dev(t, 15))
+  ]);
+  const keep = i => isPositive(i.title) && COMPANY_RE.test(i.title + " " + (i.tag || "")) && STORY_RE.test(i.title);
+  const items = dedupe(interleave(lists.map(l => l.filter(keep))))
+    .slice(0, 12)
+    .map(i => ({ ...i, tag: companyOf(i.title) || i.tag }));
+  renderCards(grid, items, "No new stories from the top companies this week — check back tomorrow.");
   return items;
 }
 
@@ -236,11 +297,14 @@ async function loadStartups() {
 async function loadGoodNews() {
   const grid = $("goodGrid");
   skeletons(grid);
-  const results = (await Promise.allSettled(CONFIG.goodNewsFeeds.map(rss)))
-    .flatMap(r => r.status === "fulfilled" ? r.value : []);
-  const items = results.filter(i => isPositive(i.title + " " + i.desc))
-    .sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 12);
-  renderCards(grid, items, "Good news feeds are taking a break — check back soon.");
+  const lists = await settled([
+    ...CONFIG.techNewsQueries.map(q => gnews(q, 7)),
+    ...CONFIG.techNewsHN.map(q => hn(q, 50))
+  ]);
+  const keep = i => isPositive(i.title + " " + (i.desc || "")) && UPBEAT_RE.test(i.title);
+  const items = dedupe(interleave(lists.map(l => l.filter(keep)
+    .sort((a, b) => new Date(b.date) - new Date(a.date))))).slice(0, 12);
+  renderCards(grid, items, "Tech good news is loading slowly — check back soon.");
 }
 
 function renderLead(items) {

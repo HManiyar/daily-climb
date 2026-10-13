@@ -1,21 +1,21 @@
 # The Daily Climb — my positive e-paper
 
-A personal newspaper that shows only uplifting stories: new tech to learn, interview experiences from people who joined product companies, startup launches, and good news from around the world.
+A personal newspaper that shows only uplifting stories: new tech to learn, how people got into the world's best tech companies, startup launches, and good news from the IT industry.
 
 ## Sections & free APIs (no keys needed)
 | Section | Source |
 |---|---|
 | Quote of the day | DummyJSON quotes (local fallback) |
 | Learn | DEV Community API (pick a tag) + GitHub repos trending this week |
-| Interview Stories | Hacker News (Algolia) + DEV `#career`, `#interview`, `#motivation` |
+| How They Got In | Google News, Medium (`#faang`, `#google-interview`, `#interview-experience`), Hacker News, DEV. Only stories naming a top company (Google, Microsoft, Amazon, Meta, Apple, Nvidia, OpenAI…) |
 | Startups | Hacker News: Show HN, launches, funding |
-| Good News | Positive News + Good News Network RSS via rss2json |
+| Good News in Tech | Google News searches for IT hiring, expansions, investments and breakthroughs + Hacker News |
 | Switch Playbook / Daily tip | Built in |
 
-Stories containing negative words (layoffs, lawsuits, outages…) are filtered out. Results are cached for an hour in your browser.
+Stories containing negative words (layoffs, job cuts, hiring freezes, slowdowns, lawsuits…) are filtered out. Results are cached for an hour in your browser.
 
 ## Personalize
-Open `app.js` and edit `CONFIG` at the top: your name, the tech tags you want, interview search phrases, startup searches and RSS feeds. Tips and the playbook are plain arrays you can rewrite.
+Open `app.js` and edit `CONFIG` at the top: your name, news region, the tech tags you want, interview and tech-news searches. Edit `TOP_COMPANIES` to choose which companies count. Tips and the playbook are plain arrays you can rewrite.
 
 ## Host on GitHub Pages
 The paper is live at **https://hmaniyar.github.io/daily-climb/**.
