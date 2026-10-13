@@ -1,71 +1,8 @@
 /* =========================================================
    THE DAILY CLIMB — personal positive e-paper
-   Edit CONFIG to personalize. All APIs below are free,
-   need no API key, and allow browser (CORS) requests.
+   Settings and story filters live in config.js.
+   All APIs below are free and need no API key.
    ========================================================= */
-
-const CONFIG = {
-  readerName: "", // e.g. "Rahul" → shows "for Rahul"
-  // DEV Community tags for the "Learn" section (first one is default)
-  learnTags: ["webdev", "javascript", "python", "ai", "systemdesign", "devops", "react"],
-  // Region for Google News searches (en-IN = India; use en-US / US / US:en for the US)
-  newsRegion: { hl: "en-IN", gl: "IN", ceid: "IN:en" },
-  // Interview Stories: how people got into the world's best companies.
-  // Only stories that name one of TOP_COMPANIES (below) are kept.
-  interviewNewsQueries: [
-    '"cracked" OR "landed" OR "bagged" job Google OR Microsoft OR Amazon OR Meta OR Apple engineer',
-    '"how I got" OR "my journey" OR "interview experience" Google OR Microsoft OR Amazon OR Nvidia OR OpenAI OR Netflix'
-  ],
-  interviewQueries: [ // Hacker News
-    "Google interview experience", "how I got into Google", "joined Microsoft",
-    "Amazon offer", "Meta interview", "FAANG offer", "Big Tech job journey"
-  ],
-  interviewMediumTags: ["faang", "google-interview", "interview-experience"],
-  interviewTags: ["faang", "interview", "career"], // DEV
-  // Startup searches
-  startupQueries: ["Show HN", "launch", "raised seed", "bootstrapped", "indie hacker"],
-  // Good News: the positive side of the IT industry (Google News searches, last 7 days)
-  techNewsQueries: [
-    'tech OR IT companies hiring OR "hiring spree" OR "new jobs" software engineers',
-    'tech company expands OR "new campus" OR "new office" OR "invests" India OR global',
-    'AI OR semiconductor OR software breakthrough OR "record growth" OR "record revenue"'
-  ],
-  // Hacker News searches for upbeat industry news
-  techNewsHN: ["hiring", "record revenue", "open sources", "breakthrough"],
-  cacheMinutes: 60,
-  daysBack: 10
-};
-
-/* Words that make a story "not positive" — those stories are hidden.
-   Each entry matches at the start of a word ("layoff" also hides "layoffs"). */
-const NEGATIVE = [
-  "layoff", "lay off", "laid off", "fired", "firing", "job cut", "job loss", "cuts\\b", "cutting jobs",
-  "slash", "downsiz", "hiring freeze", "freeze", "restructur", "retrench", "pink slip", "let go",
-  "death", "died", "dies\\b", "killed", "lawsuit", "sued\\b", "scam", "fraud", "hacked", "hackers?\\b",
-  "breach", "crash", "collapse", "shutdown", "shuts down", "bankrupt", "toxic", "burnout", "rejected",
-  "wars?\\b", "attack", "arrest", "fail", "hate\\b", "worst", "depress", "outage", "recession",
-  "slowdown", "downturn", "decline", "plunge", "slump", "tumble", "doomed", "rant\\b", "fear",
-  "threat", "warn", "crisis", "bubble", "struggl", "replace", "job-killing", "jobless", "unemploy"
-];
-const NEGATIVE_RE = new RegExp("\\b(" + NEGATIVE.join("|") + ")", "i");
-const isPositive = (t = "") => !NEGATIVE_RE.test(t);
-
-/* Good News must also sound upbeat */
-const UPBEAT_RE = /\b(hir(e|es|ed|ing)|jobs?\b|expan|opens?\b|launch|record|grow|growth|invest|breakthrough|boost|surge|rise|rising|wins?\b|award|campus|salary hike|bonus|demand|open[- ]sourc|milestone|new office|partners?hip)/i;
-
-/* Interview Stories must name one of these companies… */
-const TOP_COMPANIES = [
-  "Google", "Alphabet", "DeepMind", "Microsoft", "Amazon", "AWS", "Meta", "Facebook", "Apple",
-  "Netflix", "Nvidia", "OpenAI", "Anthropic", "Tesla", "Stripe", "Adobe", "Salesforce", "Uber",
-  "Airbnb", "LinkedIn", "Atlassian", "Goldman Sachs", "Databricks", "Intuit", "FAANG", "MAANG", "Big Tech"
-];
-const COMPANY_RE = new RegExp("\\b(" + TOP_COMPANIES.join("|") + ")\\b", "i");
-/* …and read like a "how I got in" story */
-const STORY_RE = /\b(got|get|getting|land(ed|ing)?|crack(ed|ing)?|bag(s|ged)?|join(ed|ing)?|offers?|hired|selected|interview|journey|how i|made it|my path|road to|internship|intern\b|package|placed|preparation|prepared)/i;
-const companyOf = t => {
-  const m = t.match(COMPANY_RE);
-  return m ? TOP_COMPANIES.find(c => c.toLowerCase() === m[1].toLowerCase()) : "";
-};
 
 const TIPS = [
   "Solve one DSA problem before breakfast. Consistency beats intensity.",
@@ -148,10 +85,6 @@ function renderCards(el, items, emptyMsg = "Nothing new here right now — check
     </article>`).join("");
 }
 
-const dedupe = arr => {
-  const seen = new Set();
-  return arr.filter(i => { const k = i.title.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
-};
 
 /* ---------- sources ---------- */
 
@@ -229,12 +162,6 @@ async function medium(tag) {
   return (await rss(`https://medium.com/feed/tag/${tag}`)).map(i => ({ ...i, source: `Medium · ${i.author || ""}`.replace(/ · $/, "") }));
 }
 
-// Take items from each source in turn so no single source dominates
-const interleave = lists => {
-  const out = [];
-  for (let i = 0; lists.some(l => i < l.length); i++) lists.forEach(l => { if (i < l.length) out.push(l[i]); });
-  return out;
-};
 const settled = async jobs => (await Promise.allSettled(jobs)).map(r => r.status === "fulfilled" ? r.value : []);
 
 /* ---------- sections ---------- */
@@ -267,19 +194,25 @@ async function loadRepos() {
   catch { grid.innerHTML = '<p class="empty">GitHub is resting (rate limit). Try again in a minute.</p>'; }
 }
 
+// feed.json is rebuilt every few hours by .github/workflows/pages.yml
+let feedPromise;
+const loadFeed = () => (feedPromise ??= fetch("feed.json", { cache: "no-store" })
+  .then(r => (r.ok ? r.json() : {}))
+  .catch(() => ({})));
+
 async function loadInterviews() {
   const grid = $("interviewGrid");
   skeletons(grid);
-  const lists = await settled([
-    ...CONFIG.interviewNewsQueries.map(q => gnews(q, 30)),
-    ...CONFIG.interviewMediumTags.map(medium),
-    ...CONFIG.interviewQueries.map(q => hn(q, 3, 90)),
-    ...CONFIG.interviewTags.map(t => dev(t, 15))
-  ]);
-  const keep = i => isPositive(i.title) && COMPANY_RE.test(i.title + " " + (i.tag || "")) && STORY_RE.test(i.title);
-  const items = dedupe(interleave(lists.map(l => l.filter(keep))))
-    .slice(0, 12)
-    .map(i => ({ ...i, tag: companyOf(i.title) || i.tag }));
+  let items = (await loadFeed()).interviews || [];
+  if (!items.length) {
+    // No prebuilt feed (e.g. opened locally): fetch live in the browser
+    items = pickInterviews(await settled([
+      ...CONFIG.interviewNewsQueries.map(q => gnews(q, 60)),
+      ...CONFIG.interviewMediumTags.map(medium),
+      ...CONFIG.interviewQueries.map(q => hn(q, 3, 90)),
+      ...CONFIG.interviewTags.map(t => dev(t, 15))
+    ]));
+  }
   renderCards(grid, items, "No new stories from the top companies this week — check back tomorrow.");
   return items;
 }
@@ -297,14 +230,14 @@ async function loadStartups() {
 async function loadGoodNews() {
   const grid = $("goodGrid");
   skeletons(grid);
-  const lists = await settled([
-    ...CONFIG.techNewsQueries.map(q => gnews(q, 7)),
-    ...CONFIG.techNewsHN.map(q => hn(q, 50))
-  ]);
-  const keep = i => isPositive(i.title + " " + (i.desc || "")) && UPBEAT_RE.test(i.title);
-  const items = dedupe(interleave(lists.map(l => l.filter(keep)
-    .sort((a, b) => new Date(b.date) - new Date(a.date))))).slice(0, 12);
-  renderCards(grid, items, "Tech good news is loading slowly — check back soon.");
+  let items = (await loadFeed()).goodNews || [];
+  if (!items.length) {
+    items = pickGoodNews(await settled([
+      ...CONFIG.techNewsQueries.map(q => gnews(q, 7)),
+      ...CONFIG.techNewsHN.map(q => hn(q, 50))
+    ]));
+  }
+  renderCards(grid, items, "No tech good news could be loaded right now — tap Refresh in a bit.");
 }
 
 function renderLead(items) {
@@ -355,6 +288,7 @@ function setupStatic() {
 
   $("refreshBtn").addEventListener("click", () => {
     try { Object.keys(localStorage).filter(k => k.startsWith("dc:http")).forEach(k => localStorage.removeItem(k)); } catch {}
+    feedPromise = null;
     loadAll();
   });
 }
