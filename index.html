@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>The Daily Climb — My Personal E-Paper</title>
+  <meta name="description" content="A personal, positive-only e-paper: tech learning, product-company interview stories, startups and good news." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="masthead">
+    <div class="meta-row">
+      <span id="today"></span>
+      <span id="edition">Morning Edition</span>
+      <button id="themeToggle" class="ghost" aria-label="Toggle dark mode">◐</button>
+    </div>
+    <h1>The Daily Climb</h1>
+    <p class="tagline">Good news only · <span id="readerName">for a builder on the way up</span></p>
+  </header>
+
+  <nav class="tabs" aria-label="Sections">
+    <a href="#front">Front Page</a>
+    <a href="#learn">Learn</a>
+    <a href="#interviews">Interview Stories</a>
+    <a href="#startups">Startups</a>
+    <a href="#goodnews">Good News</a>
+    <a href="#tips">Switch Playbook</a>
+  </nav>
+
+  <main>
+    <section id="front" class="front">
+      <blockquote id="quote" class="quote">
+        <p id="quoteText">Loading today's spark…</p>
+        <cite id="quoteAuthor"></cite>
+      </blockquote>
+
+      <div class="front-grid">
+        <article class="lead" id="leadStory">
+          <span class="kicker">Lead Story</span>
+          <h2 class="skeleton-line">&nbsp;</h2>
+          <p class="skeleton-line">&nbsp;</p>
+        </article>
+        <aside class="tip-of-day">
+          <span class="kicker">Today's Career Tip</span>
+          <p id="dailyTip"></p>
+          <div class="streak">
+            <span>Days you've opened your paper</span>
+            <strong id="streakCount">1</strong>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="learn">
+      <div class="section-head">
+        <h2>Learn Something New</h2>
+        <div class="chips" id="learnChips"></div>
+      </div>
+      <div class="grid" id="learnGrid"></div>
+      <h3 class="subhead">Rising on GitHub this week</h3>
+      <div class="grid compact" id="repoGrid"></div>
+    </section>
+
+    <section id="interviews">
+      <div class="section-head">
+        <h2>Interview Stories &amp; Offers</h2>
+        <p class="dek">Real experiences from people who cracked product companies.</p>
+      </div>
+      <div class="grid" id="interviewGrid"></div>
+    </section>
+
+    <section id="startups">
+      <div class="section-head">
+        <h2>Startups &amp; Launches</h2>
+        <p class="dek">Builders shipping things this week.</p>
+      </div>
+      <div class="grid" id="startupGrid"></div>
+    </section>
+
+    <section id="goodnews">
+      <div class="section-head">
+        <h2>Good News From the World</h2>
+        <p class="dek">Because progress is happening everywhere.</p>
+      </div>
+      <div class="grid" id="goodGrid"></div>
+    </section>
+
+    <section id="tips">
+      <div class="section-head">
+        <h2>The Switch Playbook</h2>
+        <p class="dek">A steady plan for moving to a product-based company.</p>
+      </div>
+      <ol class="playbook" id="playbook"></ol>
+    </section>
+  </main>
+
+  <footer>
+    <p>Sources: Hacker News (Algolia API), DEV Community, GitHub, Positive News &amp; Good News Network via rss2json, DummyJSON quotes.</p>
+    <p>Stories with negative keywords are filtered out automatically. Refreshes every hour.</p>
+    <button id="refreshBtn" class="ghost">↻ Refresh now</button>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
