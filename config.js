@@ -6,8 +6,17 @@
 
 const CONFIG = {
   readerName: "", // e.g. "Rahul" → shows "for Rahul"
-  // DEV Community tags for the "Learn" section (first one is default)
-  learnTags: ["webdev", "javascript", "python", "ai", "systemdesign", "devops", "react"],
+  // Tabs in the "Learn" section (first one is default). "prep" is the
+  // Big Tech interviews track; the rest are DEV Community tags.
+  learnTags: ["prep", "systemdesign", "webdev", "javascript", "python", "ai", "devops", "react"],
+  // Big Tech interviews: how interviews work at top companies and how to prepare.
+  // Only articles that name one of TOP_COMPANIES are kept.
+  prepNewsQueries: [
+    '"interview process" OR "interview rounds" OR "interview questions" Google OR Amazon OR Microsoft OR Meta OR Apple engineer',
+    '"how to prepare" OR "how to crack" coding OR "system design" interview Google OR Amazon OR Microsoft OR Meta'
+  ],
+  prepMediumTags: ["faang", "google-interview", "interview-experience", "system-design-interview", "coding-interview"],
+  prepDevTags: ["interview", "faang", "systemdesign", "leetcode", "career"],
   // Region for Google News searches (en-IN = India; use en-US / US / US:en for the US)
   newsRegion: { hl: "en-IN", gl: "IN", ceid: "IN:en" },
   // Interview Stories: how people got into the world's best companies.
@@ -66,6 +75,8 @@ const TOP_COMPANIES = [
 const COMPANY_RE = new RegExp("\\b(" + TOP_COMPANIES.join("|") + ")\\b", "i");
 /* …and read like a "how I got in" story, not interview questions or company news */
 const STORY_RE = /\b(lands?|landed|landing|crack(s|ed)?|bag(s|ged)?|join(s|ed)|got (an? )?(offer|job|in|into|hired|selected)|getting (in|into|hired)|offer letter|hired|selected|interview experience|my journey|journey (to|from|of)|how (i|she|he|they) (got|landed|cracked|made|prepared)|i got|made it|road to|path to|from .{2,40} to (google|microsoft|amazon|meta|apple|netflix|nvidia|openai)|story of)\b/i;
+/* Big Tech interviews: articles that teach how a top company interviews */
+const PREP_RE = /\b(interview (process|questions?|prep|preparation|guide|rounds?|loop|experience|tips|problem|pattern)|how to (prepare|crack|pass|ace|clear)|prepar(e|ing|ation)|system design|coding (interview|round)|leetcode|DSA|behaviou?ral|leadership principles|LLD|HLD|low[- ]level design|high[- ]level design|mock interview|onsite|phone screen|OA\b|online assessment|questions? (asked|i was asked)|roadmap|study plan|cheat ?sheet)/i;
 const NOT_CAREER_RE = /\b(actor|actress|film|movie|TV|series|season|stock|shares|drugs?)\b/i;
 const companyOf = t => {
   const m = t.match(COMPANY_RE);
@@ -112,6 +123,13 @@ function pickInterviews(lists, max = 12) {
     .map(i => ({ ...i, tag: companyOf(i.title) || i.tag }));
 }
 
+function pickPrep(lists, max = 12) {
+  const keep = i => isPositive(i.title) && COMPANY_RE.test(i.title) && PREP_RE.test(i.title) && !NOT_CAREER_RE.test(i.title);
+  return dedupe(interleave(lists.map(l => l.filter(keep))))
+    .slice(0, max)
+    .map(i => ({ ...i, tag: companyOf(i.title) || i.tag }));
+}
+
 if (typeof module !== "undefined") {
-  module.exports = { CONFIG, pickGoodNews, pickInterviews };
+  module.exports = { CONFIG, pickGoodNews, pickInterviews, pickPrep, isPositive };
 }

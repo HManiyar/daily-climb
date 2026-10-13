@@ -178,20 +178,32 @@ async function loadQuote() {
   }
 }
 
+const learnLabel = t => (t === "prep" ? "Big Tech interviews" : "#" + t);
+
 async function loadLearn(tag) {
   const grid = $("learnGrid");
   skeletons(grid);
   document.querySelectorAll("#learnChips .chip").forEach(c => c.classList.toggle("active", c.dataset.tag === tag));
-  try {
-    renderCards(grid, (await dev(tag)).filter(i => isPositive(i.title)));
-  } catch { grid.innerHTML = '<p class="empty">Couldn\'t reach DEV right now.</p>'; }
+  let items = (await loadFeed()).learn?.[tag] || [];
+  if (!items.length) {
+    // No prebuilt feed: fetch live in the browser
+    items = tag === "prep"
+      ? pickPrep(await settled([
+          ...CONFIG.prepNewsQueries.map(q => gnews(q, 60)),
+          ...CONFIG.prepMediumTags.map(medium),
+          ...CONFIG.prepDevTags.map(t => dev(t, 15))
+        ]))
+      : (await settled([dev(tag)]))[0].filter(i => isPositive(i.title));
+  }
+  renderCards(grid, items, "Couldn't load articles right now — tap Refresh in a bit.");
 }
 
 async function loadRepos() {
   const grid = $("repoGrid");
   skeletons(grid, 4);
-  try { renderCards(grid, await trendingRepos()); }
-  catch { grid.innerHTML = '<p class="empty">GitHub is resting (rate limit). Try again in a minute.</p>'; }
+  let items = (await loadFeed()).repos || [];
+  if (!items.length) items = (await settled([trendingRepos()]))[0];
+  renderCards(grid, items, "GitHub is resting (rate limit). Try again in a minute.");
 }
 
 // feed.json is rebuilt every few hours by .github/workflows/pages.yml
@@ -274,7 +286,7 @@ function setupStatic() {
 
   $("playbook").innerHTML = PLAYBOOK.map(([h, p]) => `<li><h4>${esc(h)}</h4><p>${esc(p)}</p></li>`).join("");
 
-  $("learnChips").innerHTML = CONFIG.learnTags.map(t => `<button class="chip" data-tag="${esc(t)}">#${esc(t)}</button>`).join("");
+  $("learnChips").innerHTML = CONFIG.learnTags.map(t => `<button class="chip" data-tag="${esc(t)}">${esc(learnLabel(t))}</button>`).join("");
   $("learnChips").addEventListener("click", e => { if (e.target.dataset.tag) { store.set("dc:tag", e.target.dataset.tag); loadLearn(e.target.dataset.tag); } });
 
   // theme

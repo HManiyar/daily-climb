@@ -4,7 +4,7 @@
    Usage: node scripts/build-feed.js [output path] */
 
 const fs = require("fs");
-const { CONFIG, pickGoodNews, pickInterviews } = require("../config.js");
+const { CONFIG, pickGoodNews, pickInterviews, pickPrep, isPositive } = require("../config.js");
 
 const UA = { "User-Agent": "Mozilla/5.0 (compatible; DailyClimbBot/1.0)" };
 
@@ -73,8 +73,8 @@ async function hn(query, minPoints, days) {
   }));
 }
 
-async function dev(tagName, count) {
-  const d = JSON.parse(await getText(`https://dev.to/api/articles?tag=${encodeURIComponent(tagName)}&top=30&per_page=${count}`));
+async function dev(tagName, count, topDays = 30) {
+  const d = JSON.parse(await getText(`https://dev.to/api/articles?tag=${encodeURIComponent(tagName)}&top=${topDays}&per_page=${count}`));
   return d.map(a => ({
     title: a.title,
     url: a.url,
@@ -84,6 +84,19 @@ async function dev(tagName, count) {
     tag: "#" + tagName,
     source: a.user?.name,
     extra: `♥ ${a.public_reactions_count}`
+  }));
+}
+
+// GitHub repos created this week, sorted by stars
+async function trendingRepos() {
+  const since = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10);
+  const d = JSON.parse(await getText(`https://api.github.com/search/repositories?q=created:>${since}&sort=stars&order=desc&per_page=8`));
+  return d.items.map(r => ({
+    title: r.full_name,
+    url: r.html_url,
+    desc: r.description || "",
+    tag: r.language || "",
+    extra: `★ ${r.stargazers_count.toLocaleString()}`
   }));
 }
 
@@ -110,14 +123,27 @@ async function gather(label, jobs) {
     ...CONFIG.interviewTags.map(t => [`dev #${t}`, () => dev(t, 30)])
   ]);
 
+  const prepLists = await gather("big tech interviews", [
+    ...CONFIG.prepNewsQueries.map(q => [`google news "${q.slice(0, 40)}…"`, () => gnews(q, 60)]),
+    ...CONFIG.prepMediumTags.map(t => [`medium #${t}`, () => medium(t)]),
+    ...CONFIG.prepDevTags.map(t => [`dev #${t}`, () => dev(t, 30)])
+  ]);
+  const learn = { prep: pickPrep(prepLists, 15) };
+  const tagLists = await gather("learn", CONFIG.learnTags.filter(t => t !== "prep").map(t => [`dev #${t}`, () => dev(t, 12, 7)]));
+  CONFIG.learnTags.filter(t => t !== "prep").forEach((t, i) => { learn[t] = tagLists[i].filter(a => isPositive(a.title)).slice(0, 9); });
+  const [repos] = await gather("learn", [["github trending repos", trendingRepos]]);
+
   const feed = {
     updated: new Date().toISOString(),
     goodNews: pickGoodNews(goodLists, 15),
-    interviews: pickInterviews(interviewLists, 15)
+    interviews: pickInterviews(interviewLists, 15),
+    learn,
+    repos
   };
-  console.log(`kept ${feed.goodNews.length} good news, ${feed.interviews.length} interview stories`);
+  console.log(`kept ${feed.goodNews.length} good news, ${feed.interviews.length} interview stories, ${learn.prep.length} big tech interview guides, ${repos.length} repos`);
   feed.goodNews.forEach(i => console.log("  + " + i.title));
   feed.interviews.forEach(i => console.log("  * " + i.title));
+  learn.prep.forEach(i => console.log("  # " + i.title));
 
   fs.writeFileSync(process.argv[2] || "feed.json", JSON.stringify(feed, null, 1));
 })();
