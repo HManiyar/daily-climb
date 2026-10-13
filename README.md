@@ -18,10 +18,8 @@ Stories containing negative words (layoffs, lawsuits, outages…) are filtered o
 Open `app.js` and edit `CONFIG` at the top: your name, the tech tags you want, interview search phrases, startup searches and RSS feeds. Tips and the playbook are plain arrays you can rewrite.
 
 ## Host on GitHub Pages
-This repo ships a workflow (`.github/workflows/pages.yml`) that publishes the site on every push to `main`.
+The paper is live at **https://hmaniyar.github.io/daily-climb/**.
 
-1. Repo **Settings → Pages → Build and deployment → Source: GitHub Actions** (one-time).
-2. Push to `main` (or run the workflow from the **Actions** tab).
-3. Your paper is live at `https://hmaniyar.github.io/daily-climb/`.
+Pages serves the `gh-pages` branch. The workflow in `.github/workflows/pages.yml` copies `main` into `gh-pages` on every push, so just push to `main` to update the site.
 
 Tip: add it to your phone's home screen from the browser menu so it opens like an app every morning.
