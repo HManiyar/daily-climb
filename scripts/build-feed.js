@@ -19,10 +19,16 @@ const tag = (xml, name) => {
   return m ? decode(m[1]).trim() : "";
 };
 
-async function getText(url) {
-  const res = await fetch(url, { headers: UA });
-  if (!res.ok) throw new Error(`${res.status} ${url}`);
-  return res.text();
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// Retries when a source says "too many requests" (DEV does this under load)
+async function getText(url, tries = 4) {
+  for (let i = 1; ; i++) {
+    const res = await fetch(url, { headers: UA });
+    if (res.ok) return res.text();
+    if (res.status !== 429 || i >= tries) throw new Error(`${res.status} ${url}`);
+    await sleep(2000 * i);
+  }
 }
 
 async function rss(url) {
@@ -128,7 +134,10 @@ async function gather(label, jobs) {
     ...CONFIG.prepMediumTags.map(t => [`medium #${t}`, () => medium(t)]),
     ...CONFIG.prepDevTags.map(t => [`dev #${t}`, () => dev(t, 30)])
   ]);
-  const learn = { prep: pickPrep(prepLists, 15) };
+  // Stories already in How They Got In are left out of the interviews tab
+  const interviews = pickInterviews(interviewLists, 15);
+  const shown = new Set(interviews.map(i => i.url));
+  const learn = { prep: pickPrep(prepLists.map(l => l.filter(i => !shown.has(i.url))), 15) };
   const tagLists = await gather("learn", CONFIG.learnTags.filter(t => t !== "prep").map(t => [`dev #${t}`, () => dev(t, 12, 7)]));
   CONFIG.learnTags.filter(t => t !== "prep").forEach((t, i) => { learn[t] = tagLists[i].filter(a => isPositive(a.title)).slice(0, 9); });
   const [repos] = await gather("learn", [["github trending repos", trendingRepos]]);
@@ -136,7 +145,7 @@ async function gather(label, jobs) {
   const feed = {
     updated: new Date().toISOString(),
     goodNews: pickGoodNews(goodLists, 15),
-    interviews: pickInterviews(interviewLists, 15),
+    interviews,
     learn,
     repos
   };
