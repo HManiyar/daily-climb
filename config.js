@@ -32,8 +32,12 @@ const CONFIG = {
   ],
   interviewMediumTags: ["faang", "google-interview", "interview-experience"],
   interviewTags: ["faang", "interview", "career"], // DEV
-  // Startup searches
+  // Startups: Hacker News searches, plus startup funding and launch news (Google News, last 7 days)
   startupQueries: ["Show HN", "launch", "raised seed", "bootstrapped", "indie hacker"],
+  startupNewsQueries: [
+    'startup raises OR "secures funding" OR "seed round" OR "Series A" tech OR AI OR SaaS',
+    'startup launches OR unveils app OR platform OR product tech OR AI'
+  ],
   // Good News: the positive side of the IT industry (Google News searches, last 7 days)
   techNewsQueries: [
     'tech OR IT companies hiring OR "hiring spree" OR "new jobs" software engineers',
@@ -123,6 +127,12 @@ function pickInterviews(lists, max = 12) {
     .map(i => ({ ...i, tag: companyOf(i.title) || i.tag }));
 }
 
+function pickStartups(hnLists, newsLists, max = 12) {
+  const hnItems = dedupe(hnLists.flat().filter(i => isPositive(i.title))).sort((a, b) => (b.score || 0) - (a.score || 0));
+  const news = newsLists.map(l => l.filter(i => isPositive(i.title) && !i.title.trim().endsWith("?")).sort(byNewest));
+  return dedupe(interleave([hnItems, ...news])).slice(0, max);
+}
+
 function pickPrep(lists, max = 12) {
   const keep = i => isPositive(i.title) && COMPANY_RE.test(i.title) && PREP_RE.test(i.title) && !NOT_CAREER_RE.test(i.title);
   return dedupe(interleave(lists.map(l => l.filter(keep))))
@@ -131,5 +141,5 @@ function pickPrep(lists, max = 12) {
 }
 
 if (typeof module !== "undefined") {
-  module.exports = { CONFIG, pickGoodNews, pickInterviews, pickPrep, isPositive };
+  module.exports = { CONFIG, pickGoodNews, pickInterviews, pickPrep, pickStartups, isPositive };
 }

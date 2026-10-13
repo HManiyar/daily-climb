@@ -232,10 +232,14 @@ async function loadInterviews() {
 async function loadStartups() {
   const grid = $("startupGrid");
   skeletons(grid);
-  const results = (await Promise.allSettled(CONFIG.startupQueries.map(q => hn(q, 20))))
-    .flatMap(r => r.status === "fulfilled" ? r.value : []);
-  const items = dedupe(results.filter(i => isPositive(i.title))).sort((a, b) => b.score - a.score).slice(0, 12);
-  renderCards(grid, items);
+  let items = (await loadFeed()).startups || [];
+  if (!items.length) {
+    items = pickStartups(
+      await settled(CONFIG.startupQueries.map(q => hn(q, 20))),
+      await settled(CONFIG.startupNewsQueries.map(q => gnews(q, 7)))
+    );
+  }
+  renderCards(grid, items, "No launches could be loaded right now — tap Refresh in a bit.");
   return items;
 }
 

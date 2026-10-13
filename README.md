@@ -8,11 +8,11 @@ A personal newspaper that shows only uplifting stories: new tech to learn, how p
 | Quote of the day | DummyJSON quotes (local fallback) |
 | Learn | **Big Tech interviews** tab: how Google, Amazon, Microsoft, Meta… interview and how to prepare (Google News, Medium, DEV). Other tabs: DEV Community tags. Plus GitHub repos trending this week |
 | How They Got In | Google News, Medium (`#faang`, `#google-interview`, `#interview-experience`), Hacker News, DEV. Only stories naming a top company (Google, Microsoft, Amazon, Meta, Apple, Nvidia, OpenAI…) |
-| Startups | Hacker News: Show HN, launches, funding |
+| Startups | Hacker News (Show HN, launches) + Google News startup funding and launch news |
 | Good News in Tech | Google News searches for IT hiring, expansions, investments and breakthroughs + Hacker News |
 | Switch Playbook / Daily tip | Built in |
 
-Learn, Good News in Tech and How They Got In are gathered every 2 hours by a GitHub Action (`scripts/build-feed.js`) and saved as `feed.json` next to the page, because Google News and Medium can't be read straight from a browser. If `feed.json` is missing (e.g. you open the page locally), the page tries to fetch live instead.
+Learn, Startups, Good News in Tech and How They Got In are gathered every 2 hours by a GitHub Action (`scripts/build-feed.js`) and saved as `feed.json` next to the page, because Google News and Medium can't be read straight from a browser. If `feed.json` is missing (e.g. you open the page locally), the page tries to fetch live instead.
 
 Stories containing negative words (layoffs, job cuts, hiring freezes, slowdowns, lawsuits…) are filtered out. Results are cached for an hour in your browser.
 

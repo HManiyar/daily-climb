@@ -4,7 +4,7 @@
    Usage: node scripts/build-feed.js [output path] */
 
 const fs = require("fs");
-const { CONFIG, pickGoodNews, pickInterviews, pickPrep, isPositive } = require("../config.js");
+const { CONFIG, pickGoodNews, pickInterviews, pickPrep, pickStartups, isPositive } = require("../config.js");
 
 const UA = { "User-Agent": "Mozilla/5.0 (compatible; DailyClimbBot/1.0)" };
 
@@ -75,7 +75,8 @@ async function hn(query, minPoints, days) {
     url: h.url || `https://news.ycombinator.com/item?id=${h.objectID}`,
     date: h.created_at,
     source: "Hacker News",
-    extra: `▲ ${h.points}`
+    extra: `▲ ${h.points}`,
+    score: h.points
   }));
 }
 
@@ -140,12 +141,15 @@ async function gather(label, jobs) {
   const learn = { prep: pickPrep(prepLists.map(l => l.filter(i => !shown.has(i.url))), 15) };
   const tagLists = await gather("learn", CONFIG.learnTags.filter(t => t !== "prep").map(t => [`dev #${t}`, () => dev(t, 12, 7)]));
   CONFIG.learnTags.filter(t => t !== "prep").forEach((t, i) => { learn[t] = tagLists[i].filter(a => isPositive(a.title)).slice(0, 9); });
+  const startupHN = await gather("startups", CONFIG.startupQueries.map(q => [`hn "${q}"`, () => hn(q, 20, CONFIG.daysBack)]));
+  const startupNews = await gather("startups", CONFIG.startupNewsQueries.map(q => [`google news "${q.slice(0, 40)}…"`, () => gnews(q, 7)]));
   const [repos] = await gather("learn", [["github trending repos", trendingRepos]]);
 
   const feed = {
     updated: new Date().toISOString(),
     goodNews: pickGoodNews(goodLists, 15),
     interviews,
+    startups: pickStartups(startupHN, startupNews, 12),
     learn,
     repos
   };
@@ -153,6 +157,7 @@ async function gather(label, jobs) {
   feed.goodNews.forEach(i => console.log("  + " + i.title));
   feed.interviews.forEach(i => console.log("  * " + i.title));
   learn.prep.forEach(i => console.log("  # " + i.title));
+  feed.startups.forEach(i => console.log("  ^ " + i.title));
 
   fs.writeFileSync(process.argv[2] || "feed.json", JSON.stringify(feed, null, 1));
 })();
